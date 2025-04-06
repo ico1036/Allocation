@@ -55,6 +55,17 @@ def get_stock_data(symbols, n_years=10):
         result_df = pd.DataFrame(result_data)
         # 날짜 인덱스를 YYMMDD 형식의 문자열로 변환
         result_df.index = result_df.index.strftime('%y%m%d')
+        
+        # NaN 값 처리 전 데이터 길이 출력
+        print(f"\nNaN 처리 전 데이터 길이: {len(result_df)}")
+        
+        # NaN 값 처리
+        result_df = result_df.dropna()
+        
+        # NaN 값 처리 후 데이터 길이 출력
+        print(f"NaN 처리 후 데이터 길이: {len(result_df)}")
+        print(f"제거된 데이터 수: {len(result_df.index) - len(result_df)}")
+        
         return result_df
     else:
         return pd.DataFrame()
