@@ -31,24 +31,16 @@ def get_stock_data(symbols, n_years=10):
             stock = yf.Ticker(symbol)
             df = stock.history(start=start_date, end=end_date)
             
-            # 데이터 길이 출력
-            print(f"{symbol} 데이터 길이: {len(df)}일")
-            
             # 데이터 기간 체크
             if len(df) < 252 * 3:  # 252는 평균 거래일 수
                 excluded_symbols.append(symbol)
-                print(f"경고: {symbol}의 데이터가 {n_years}년 미만입니다. 제외됩니다.")
                 continue
             
             # Adj Close 데이터만 저장
             result_data[symbol] = df['Close']
             
         except Exception as e:
-            print(f"에러: {symbol} 데이터 다운로드 중 오류 발생: {str(e)}")
             excluded_symbols.append(symbol)
-    
-    if excluded_symbols:
-        print(f"\n제외된 종목들: {', '.join(excluded_symbols)}")
     
     # 모든 종목의 데이터를 하나의 DataFrame으로 결합
     if result_data:
@@ -56,15 +48,8 @@ def get_stock_data(symbols, n_years=10):
         # 날짜 인덱스를 YYMMDD 형식의 문자열로 변환
         result_df.index = result_df.index.strftime('%y%m%d')
         
-        # NaN 값 처리 전 데이터 길이 출력
-        print(f"\nNaN 처리 전 데이터 길이: {len(result_df)}")
-        
         # NaN 값 처리
         result_df = result_df.dropna()
-        
-        # NaN 값 처리 후 데이터 길이 출력
-        print(f"NaN 처리 후 데이터 길이: {len(result_df)}")
-        print(f"제거된 데이터 수: {len(result_df.index) - len(result_df)}")
         
         return result_df
     else:

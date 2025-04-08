@@ -7,7 +7,6 @@ from plotly.subplots import make_subplots
 import logging
 import sys
 
-
 def calculate_performance_metrics(returns):
     """
     포트폴리오 수익률에 대한 성과 지표를 계산합니다.
@@ -354,9 +353,7 @@ def plot_portfolio_return_comparison(portfolio_returns_df, comparison_df, rebala
         
         # 주요 날짜 포인트: 시작, 끝, 리밸런싱 날짜
         important_dates = [start_date, end_date] + list(pd.to_datetime(list(all_rebalance_dates)))
-        
-        # 날짜를 문자열로 변환하지 않고 datetime 객체로 정렬
-        important_dates = sorted(important_dates)
+        important_dates.sort()
         
         # X축 날짜 형식 설정 (첫 번째 서브플롯)
         fig.update_xaxes(
