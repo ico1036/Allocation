@@ -5,7 +5,7 @@ import numpy as np
 from util import (calculate_performance_metrics, visualize_backtest_results, 
                  plot_portfolio_return_comparison, setup_logging, get_rebalance_dates, 
                  handle_rebalancing_warning)
-from model import risk_parity_weights, create_weight_calculator
+from model import risk_parity_weights, cvar_weights, create_weight_calculator
 import matplotlib.pyplot as plt
 import logging
 
@@ -35,6 +35,19 @@ CONFIG = {
         },
         'risk_parity': {
             'name': '제약있는 Risk Parity',
+        },
+        'cvar': {
+            'name': 'CVaR 최적화',
+        },
+        'contextual_bandit': {
+            'name': 'Contextual Bandit',
+            'context_features': {
+                'market_return': True,
+                'market_volatility': True,
+                'correlation': True,
+                'vix': False,  # VIX 지수 사용 여부
+                'interest_rate': False,  # 금리 사용 여부
+            }
         }
     }
 }
@@ -212,9 +225,16 @@ def initialize_portfolios(returns):
     )
     portfolio_weights[CONFIG['portfolios']['risk_parity']['name']] = risk_parity_weights_dict
     
-    # 3. 새로운 모델 (추가 시)
-    # new_model_weights_dict = new_model_weights(...)
-    # portfolio_weights[CONFIG['portfolios']['new_model']['name']] = new_model_weights_dict
+    # 3. CVaR 최적화 포트폴리오
+    if 'cvar' in CONFIG['portfolios']:
+        cvar_weights_dict = cvar_weights(
+            returns,
+            lookback_period=CONFIG['optimization']['lookback_period'],
+            min_weight=CONFIG['optimization']['min_weight'],
+            max_weight=CONFIG['optimization']['max_weight'],
+            config=CONFIG
+        )
+        portfolio_weights[CONFIG['portfolios']['cvar']['name']] = cvar_weights_dict
     
     return portfolio_weights
 
@@ -247,6 +267,9 @@ def main():
         if portfolio_name == CONFIG['portfolios']['risk_parity']['name']:
             # Risk Parity 방식으로 비중 계산 (비중 제약 적용)
             weight_calculator = create_weight_calculator('risk_parity', config=CONFIG)
+        elif 'cvar' in CONFIG['portfolios'] and portfolio_name == CONFIG['portfolios']['cvar']['name']:
+            # CVaR 방식으로 비중 계산 (비중 제약 적용)
+            weight_calculator = create_weight_calculator('cvar', config=CONFIG)
         else:
             # 수동 비중은 리밸런싱 시에도 동일하게 유지
             weight_calculator = create_weight_calculator('equal_weight', weights, CONFIG)

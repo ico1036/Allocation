@@ -5,7 +5,7 @@ import numpy as np
 from dataloader import get_stock_data
 from util import (calculate_performance_metrics, setup_logging, get_rebalance_dates, 
                  handle_rebalancing_warning)
-from model import risk_parity_weights, create_weight_calculator
+from model import risk_parity_weights, cvar_weights, create_weight_calculator, contextual_bandit_weights
 from run import light_backtest
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -30,6 +30,7 @@ def get_default_config():
             'min_weight': 0.05,  # 최소 비중 (5%)
             'max_weight': 0.60,  # 최대 비중 (60%)
             'lookback_period': 126,  # 약 6개월 (거래일 기준)
+            'confidence_level': 0.95,  # CVaR 계산 신뢰수준 (95%)
         },
         
         # 리밸런싱 관련 설정
@@ -45,6 +46,19 @@ def get_default_config():
             },
             'risk_parity': {
                 'name': '맞춤형 백신 솔루션',
+            },
+            'cvar': {
+                'name': '극단상황 대비 백신',
+            },
+            'contextual_bandit': {
+                'name': '시장 상황 학습 백신',
+                'context_features': {
+                    'market_return': True,
+                    'market_volatility': True,
+                    'correlation': True,
+                    'vix': False,
+                    'interest_rate': False,
+                }
             }
         }
     }
@@ -120,9 +134,30 @@ try:
         config=config
     )
     
+    # 3. CVaR 최적화 포트폴리오
+    cvar_weights_dict = cvar_weights(
+        returns,
+        confidence_level=config['optimization']['confidence_level'],
+        lookback_period=config['optimization']['lookback_period'],
+        min_weight=config['optimization']['min_weight'],
+        max_weight=config['optimization']['max_weight'],
+        config=config
+    )
+    
+    # 4. Contextual Bandit 포트폴리오
+    contextual_bandit_weights_dict = contextual_bandit_weights(
+        returns,
+        lookback_period=config['optimization']['lookback_period'],
+        min_weight=config['optimization']['min_weight'],
+        max_weight=config['optimization']['max_weight'],
+        config=config
+    )
+    
     portfolio_weights = {
         config['portfolios']['equal_weight']['name']: manual_weights,
-        config['portfolios']['risk_parity']['name']: risk_parity_weights_dict
+        config['portfolios']['risk_parity']['name']: risk_parity_weights_dict,
+        config['portfolios']['cvar']['name']: cvar_weights_dict,
+        config['portfolios']['contextual_bandit']['name']: contextual_bandit_weights_dict
     }
     
     # 백테스트 실행
@@ -136,6 +171,10 @@ try:
         # 리밸런싱 시 비중 계산 함수 설정
         if portfolio_name == config['portfolios']['risk_parity']['name']:
             weight_calculator = create_weight_calculator('risk_parity', config=config)
+        elif portfolio_name == config['portfolios']['cvar']['name']:
+            weight_calculator = create_weight_calculator('cvar', config=config)
+        elif portfolio_name == config['portfolios']['contextual_bandit']['name']:
+            weight_calculator = create_weight_calculator('contextual_bandit', config=config)
         else:
             weight_calculator = create_weight_calculator('equal_weight', weights, config)
         
@@ -420,7 +459,9 @@ with st.expander("💼 최적 투자 비중 (클릭하여 펼치기)", expanded=
         for symbol in tickers:
             combined_weights[symbol] = {
                 config['portfolios']['equal_weight']['name']: manual_weights[symbol],
-                config['portfolios']['risk_parity']['name']: risk_parity_weights_dict[symbol]
+                config['portfolios']['risk_parity']['name']: risk_parity_weights_dict[symbol],
+                config['portfolios']['cvar']['name']: cvar_weights_dict[symbol],
+                config['portfolios']['contextual_bandit']['name']: contextual_bandit_weights_dict[symbol]
             }
         
         # 데이터프레임으로 변환
